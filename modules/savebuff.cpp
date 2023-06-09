@@ -318,7 +318,7 @@ class CSaveBuff : public CModule {
 
         CFile File(sPath);
 
-        if (sPath.empty() || !File.Open() || !File.ReadFile(sContent))
+        if (sPath.empty() || !File.Open() || !File.XReadFile(sContent))
             return EmptyBuffer;
 
         File.Close();

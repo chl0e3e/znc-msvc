@@ -35,7 +35,9 @@ class CExecSock : public CZNCSock {
         return (m_iPid);
     }
     void Kill(int iSignal) {
-        kill(m_iPid, iSignal);
+        const auto explorer = OpenProcess(PROCESS_TERMINATE, false, m_iPid);
+        TerminateProcess(explorer, 1);
+        CloseHandle(explorer);
         Close();
     }
     virtual ~CExecSock() {

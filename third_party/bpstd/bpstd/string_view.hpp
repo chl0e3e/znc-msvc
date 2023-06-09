@@ -712,7 +712,7 @@ namespace bpstd {
       throw std::out_of_range("Index out of range in basic_string_view::substr");
     }
 
-    return basic_string_view(m_str + pos, std::min(len, max_length) );
+    return basic_string_view(m_str + pos, min(len, max_length) );
   }
 
   //--------------------------------------------------------------------------

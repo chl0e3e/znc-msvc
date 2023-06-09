@@ -35,14 +35,15 @@
 #endif
 #endif /* HAVE_LIBSSL */
 #include <memory>
-#include <unistd.h>
+//#include <unistd.h>
 #include <time.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-
+//#include <sys/socket.h>
+//#include <netdb.h>
+//#include <netinet/in.h>
+#include <stdio.h>
+#include <stdint.h> 
 #ifdef HAVE_TCSETATTR
 #include <termios.h>
 #endif
@@ -179,7 +180,6 @@ unsigned long CUtils::GetLongIP(const CString& sIP) {
 // If you change this here and in GetSaltedHashPass(),
 // don't forget CUser::HASH_DEFAULT!
 // TODO refactor this
-const CString CUtils::sDefaultHash = "sha256";
 CString CUtils::GetSaltedHashPass(CString& sSalt) {
     sSalt = GetSalt();
 
@@ -211,31 +211,99 @@ CString CUtils::SaltedSHA256Hash(const CString& sPass, const CString& sSalt) {
 }
 
 CString CUtils::GetPass(const CString& sPrompt) {
-#ifdef HAVE_TCSETATTR
-    // Disable echo
-    struct termios t;
-    tcgetattr(1, &t);
-    struct termios t2 = t;
-    t2.c_lflag &= ~ECHO;
-    tcsetattr(1, TCSANOW, &t2);
-    // Read pass
-    CString r;
-    GetInput(sPrompt, r);
-    // Restore echo and go to new line
-    tcsetattr(1, TCSANOW, &t);
-    fprintf(stdout, "\n");
-    fflush(stdout);
-    return r;
-#else
-    PrintPrompt(sPrompt);
-#ifdef HAVE_GETPASSPHRASE
-    return getpassphrase("");
-#else
-    return getpass("");
-#endif
-#endif
+    printf(sPrompt.c_str());
+
+    HANDLE hStdin;
+    DWORD fdwSaveOldMode;
+
+    DWORD cNumRead, fdwMode, i;
+    INPUT_RECORD irInBuf[128];
+    int counter = 0;
+
+    // Get the standard input handle.
+
+    hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    if (hStdin == INVALID_HANDLE_VALUE) DEBUG("err GetStdHandle");
+
+    // Save the current input mode, to be restored on exit.
+
+    if (!GetConsoleMode(hStdin, &fdwSaveOldMode)) DEBUG(" err GetConsoleMode");
+
+    // Enable the window and mouse input events.
+
+    fdwMode = ENABLE_WINDOW_INPUT;
+    if (!SetConsoleMode(hStdin, fdwMode)) DEBUG("err SetConsoleMode");
+
+    // Loop to read and handle the next 100 input events.
+    std::string pass = "";
+    int n = 0;
+    while (counter++ <= 100) {
+        // Wait for the events.
+
+        if (!ReadConsoleInput(hStdin,      // input buffer handle
+                              irInBuf,     // buffer to read into
+                              128,         // size of read buffer
+                              &cNumRead))  // number of records read
+            DEBUG("ReadConsoleInput error");
+
+        // Dispatch the events to the appropriate handler.
+        bool superbreak = false;
+        for (i = 0; i < cNumRead; i++) {
+            switch (irInBuf[i].EventType) {
+                case KEY_EVENT:  // keyboard input
+                    if (!irInBuf[i].Event.KeyEvent.bKeyDown) {
+                        continue;
+                    }
+                    if (0x0D == irInBuf[i].Event.KeyEvent.wVirtualKeyCode && n != 0) {
+                        DEBUG("superbreak");
+                        superbreak = true;
+                        break;
+                    }
+                    else if (0x0D !=
+                        irInBuf[i].Event.KeyEvent.wVirtualKeyCode)
+                    {
+                        pass += irInBuf[i].Event.KeyEvent.uChar.AsciiChar;
+                    n++;
+                    }
+                    break;
+
+
+                default:
+                    DEBUG("Unknown event type");
+                    break;
+            }
+            if (superbreak) break;
+        }
+        if (superbreak) break;
+    }
+
+    // Restore input mode on exit.
+
+    SetConsoleMode(hStdin, fdwSaveOldMode);
+
+    return pass;
 }
 
+ int gettimeofday(struct timeval* tp, struct timezone* tzp) {
+      // Note: some broken versions only have 8 trailing zero's, the correct
+       // epoch
+          // has 9 trailing zero's This magic number is the number of 100
+           // nanosecond
+          // intervals since January 1, 1601 (UTC) until 00:00:00 January 1,
+           // 1970
+        static const uint64_t EPOCH = ((uint64_t)116444736000000000ULL);
+   SYSTEMTIME system_time;
+    FILETIME file_time;
+   uint64_t time;
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    time = ((uint64_t)file_time.dwLowDateTime);
+    time += ((uint64_t)file_time.dwHighDateTime) << 32;
+    tp->tv_sec = (long)((time - EPOCH) / 10000000L);
+    tp->tv_usec = (long)(system_time.wMilliseconds * 1000);
+    return 0;
+    
+}
 bool CUtils::GetBoolInput(const CString& sPrompt, bool bDefault) {
     return CUtils::GetBoolInput(sPrompt, &bDefault);
 }
@@ -412,7 +480,7 @@ timeval CUtils::GetTime() {
     }
 
     // Last resort, no microseconds
-    return { time(nullptr), 0 };
+    return { (long)time(nullptr), 0 };
 }
 
 unsigned long long CUtils::GetMillTime() {
@@ -630,7 +698,7 @@ bool CUtils::CheckCIDR(const CString& sIP, const CString& sRange) {
             reinterpret_cast<const sockaddr_in*>(aiRange->ai_addr);
 
         // Make IPv4 bitmask
-        const in_addr_t inBitmask = htonl((~0u) << (32 - iRoutingPrefix));
+        uint32_t inBitmask = htonl((~0u) << (32 - iRoutingPrefix));
 
         // Compare masked IPv4s
         return ((inBitmask & saHost->sin_addr.s_addr) ==
@@ -671,7 +739,7 @@ MCString CUtils::GetMessageTags(const CString& sLine) {
     if (sLine.StartsWith("@")) {
         return CMessage(sLine).GetTags();
     }
-    return MCString::EmptyMap;
+    return MCString();
 }
 
 void CUtils::SetMessageTags(CString& sLine, const MCString& mssTags) {

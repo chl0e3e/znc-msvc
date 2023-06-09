@@ -72,7 +72,7 @@ CString CBufLine::GetLine(const CClient& Client,
     // Note: Discard all tags (except the time tag, conditionally) to
     // keep the same behavior as ZNC versions 1.6 and earlier had. See
     // CClient::PutClient(CMessage) documentation for more details.
-    Line.SetTags(MCString::EmptyMap);
+    Line.SetTags(MCString());
 
     if (Client.HasServerTime()) {
         CString sTime = m_Message.GetTag("time");

@@ -22,6 +22,7 @@
 #ifdef HAVE_ZLIB
 #include <zlib.h>
 #endif
+#include <znc/ZNCDebug.h>
 
 using std::map;
 using std::set;
@@ -227,7 +228,7 @@ CString CHTTPSock::GetDate(time_t stamp) {
                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
     if (stamp == 0) time(&stamp);
-    gmtime_r(&stamp, &tm);
+    tm = *gmtime(&stamp);
 
     stream << wkday[tm.tm_wday] << ", ";
     stream << std::setfill('0') << std::setw(2) << tm.tm_mday << " ";
@@ -427,7 +428,7 @@ bool CHTTPSock::PrintFile(const CString& sFileName, CString sContentType) {
 void CHTTPSock::WriteFileUncompressed(CFile& File) {
     char szBuf[4096];
     off_t iLen = 0;
-    ssize_t i = 0;
+    SSIZE_T i = 0;
     off_t iSize = File.GetSize();
 
     // while we haven't reached iSize and read() succeeds...

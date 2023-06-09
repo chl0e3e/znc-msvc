@@ -20,7 +20,9 @@
 #include <znc/zncconfig.h>
 #include <znc/version.h>
 
-extern bool ZNC_NO_NEED_TO_DO_ANYTHING_ON_MODULE_CALL_EXITER;
+extern "C" int main(int argc, char** argv);
+
+    extern bool ZNC_NO_NEED_TO_DO_ANYTHING_ON_MODULE_CALL_EXITER;
 #define NOTHING &ZNC_NO_NEED_TO_DO_ANYTHING_ON_MODULE_CALL_EXITER
 
 #define ALLMODULECALL(macFUNC, macEXITER)                                      \

@@ -8,12 +8,12 @@ ignore:
 fixes:
   - "usr/local/lib/znc/::modules/"
   - "/usr/local/lib/znc/::modules/"
-codecov:
-  ci:
+#codecov:
+#  ci:
     # Cygwin fails integration test with --coverage enabled, I don't know why
-    - !appveyor
+    #- !appveyor
     # FreeBSD doesn't support C++ coverage yet (can't find libprofile_rt.a)
-    - !jenkins.znc.in
+    #- !jenkins.znc.in
 coverage:
   status:
     project:

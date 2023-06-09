@@ -21,6 +21,9 @@
 #include <znc/SHA256.h>
 #include <sstream>
 
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+
 using std::stringstream;
 
 CString::CString(char c) : string() {
@@ -1442,10 +1445,8 @@ CString CString::StripControls_n() const {
 CString& CString::StripControls() { return (*this = StripControls_n()); }
 
 //////////////// MCString ////////////////
-const MCString MCString::EmptyMap;
 
-MCString::status_t MCString::WriteToDisk(const CString& sPath,
-                                         mode_t iMode) const {
+MCString::status_t MCString::WriteToDisk(const CString& sPath) const {
     CFile cFile(sPath);
 
     if (this->empty()) {
@@ -1453,7 +1454,7 @@ MCString::status_t MCString::WriteToDisk(const CString& sPath,
         if (cFile.Delete()) return MCS_SUCCESS;
     }
 
-    if (!cFile.Open(O_WRONLY | O_CREAT | O_TRUNC, iMode)) {
+    if (!cFile.Open(_O_WRONLY | _O_CREAT | _O_TRUNC)) {
         return MCS_EOPEN;
     }
 
@@ -1481,7 +1482,7 @@ MCString::status_t MCString::WriteToDisk(const CString& sPath,
 MCString::status_t MCString::ReadFromDisk(const CString& sPath) {
     clear();
     CFile cFile(sPath);
-    if (!cFile.Open(O_RDONLY)) {
+    if (!cFile.Open(_O_RDONLY)) {
         return MCS_EOPEN;
     }
 

@@ -23,18 +23,21 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <map>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <unistd.h>
 #include <vector>
 
-static inline void SetFdCloseOnExec(int fd) {
+#ifndef WINSOCKS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define WINSOCKS
+#endif
+
+/* static inline void SetFdCloseOnExec(int fd) {
     int flags = fcntl(fd, F_GETFD, 0);
     if (flags < 0) return;  // Ignore errors
     // When we execve() a new process this fd is now automatically closed.
     fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
-}
-
+}*/
+int gettimeofday(struct timeval* tp, struct timezone* tzp);
 static const char g_HexDigits[] = "0123456789abcdef";
 
 class CUtils {
@@ -50,11 +53,6 @@ class CUtils {
     static void PrintPrompt(const CString& sMessage);
     static void PrintAction(const CString& sMessage);
     static void PrintStatus(bool bSuccess, const CString& sMessage = "");
-
-#ifndef SWIGPERL
-    // TODO refactor this
-    static const CString sDefaultHash;
-#endif
 
     static CString GetSaltedHashPass(CString& sSalt);
     static CString GetSalt();

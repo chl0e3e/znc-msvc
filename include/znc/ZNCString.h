@@ -603,7 +603,6 @@ class MCString : public std::map<CString, CString> {
     virtual ~MCString() { clear(); }
 
     /** A static instance of an empty map. */
-    static const MCString EmptyMap;
 
     /** Status codes that can be returned by WriteToDisk() and
      * ReadFromDisk(). */
@@ -626,7 +625,7 @@ class MCString : public std::map<CString, CString> {
      * @return The result of the operation.
      * @see WriteFilter.
      */
-    enum status_t WriteToDisk(const CString& sPath, mode_t iMode = 0644) const;
+    enum status_t WriteToDisk(const CString& sPath) const;
     /** Read a map from a file.
      * @param sPath The file name to read from.
      * @return The result of the operation.

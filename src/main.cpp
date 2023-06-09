@@ -117,6 +117,78 @@ struct option {
     int* flag;
     int val;
 };
+#include <string.h>
+#include <stdio.h>
+
+int     opterr = 1,             /* if error message should be printed */
+  optind = 1,             /* index into parent argv vector */
+  optopt,                 /* character checked for validity */
+  optreset;               /* reset getopt */
+char    *optarg;                /* argument associated with option */
+
+#define BADCH   (int)'?'
+#define BADARG  (int)':'
+#define EMSG    ""
+
+/*
+* getopt --
+*      Parse argc/argv argument vector.
+*/
+int
+  getopt(int nargc, char * const nargv[], const char *ostr)
+{
+  static char *place = EMSG;              /* option letter processing */
+  const char *oli;                        /* option letter list index */
+
+  if (optreset || !*place) {              /* update scanning pointer */
+    optreset = 0;
+    if (optind >= nargc || *(place = nargv[optind]) != '-') {
+      place = EMSG;
+      return (-1);
+    }
+    if (place[1] && *++place == '-') {      /* found "--" */
+      ++optind;
+      place = EMSG;
+      return (-1);
+    }
+  }                                       /* option letter okay? */
+  if ((optopt = (int)*place++) == (int)':' ||
+    !(oli = strchr(ostr, optopt))) {
+      /*
+      * if the user didn't specify '-' as an option,
+      * assume it means -1.
+      */
+      if (optopt == (int)'-')
+        return (-1);
+      if (!*place)
+        ++optind;
+      if (opterr && *ostr != ':')
+      (void)CUtils::PrintError("illegal option\n");
+      return (BADCH);
+  }
+  if (*++oli != ':') {                    /* don't need argument */
+    optarg = NULL;
+    if (!*place)
+      ++optind;
+  }
+  else {                                  /* need an argument */
+    if (*place)                     /* no white space */
+      optarg = place;
+    else if (nargc <= ++optind) {   /* no arg */
+      place = EMSG;
+      if (*ostr == ':')
+        return (BADARG);
+      if (opterr)
+          (void)CUtils::PrintError("option requires an argument\n");
+      return (BADCH);
+    }
+    else                            /* white space */
+      optarg = nargv[optind];
+    place = EMSG;
+    ++optind;
+  }
+  return (optopt);                        /* dump back option letter */
+}
 
 static inline int getopt_long(int argc, char* const argv[],
                               const char* optstring, const struct option*,
@@ -165,6 +237,7 @@ static void GenerateHelp(const char* appname) {
         "\t-s, --makepass     Generates a password for use in config");
 }
 
+/*
 class CSignalHandler {
   public:
     CSignalHandler(CZNC* pZNC) {
@@ -262,12 +335,12 @@ class CSignalHandler {
 
     // pipe for waking up the main thread
     int m_iPipe[2];
-};
+};*/
 
 static bool isRoot() {
     // User root? If one of these were root, we could switch the others to root,
     // too
-    return (geteuid() == 0 || getuid() == 0);
+    return FALSE;
 }
 
 static void seedPRNG() {
@@ -289,6 +362,20 @@ static void seedPRNG() {
     seed ^= getpid();
 
     srand(seed);
+}
+
+#ifdef __GNUC__
+#define _stdcall __attribute__((stdcall))
+#endif
+
+//int main() { return 0; }
+
+//int main2(int argc, char** argv);
+
+    extern int _stdcall WinMain(struct HINSTANCE__* hInstance,
+                     struct HINSTANCE__* hPrevInstance, char* lpszCmdLine,
+                     int nCmdShow) {
+    return main(__argc, __argv);
 }
 
 int main(int argc, char** argv) {
@@ -393,7 +480,7 @@ int main(int argc, char** argv) {
         // Not PrintMessage(), to remove [**] from the beginning, to ease
         // copypasting
         std::cout << "<Pass password>" << std::endl;
-        std::cout << "\tMethod = " << CUtils::sDefaultHash << std::endl;
+        std::cout << "\tMethod = " <<  "sha256" << std::endl;
         std::cout << "\tHash = " << sHash << std::endl;
         std::cout << "\tSalt = " << sSalt << std::endl;
         std::cout << "</Pass>" << std::endl;
@@ -446,7 +533,7 @@ int main(int argc, char** argv) {
         CUtils::PrintError(
             "Hit CTRL+C now if you don't want to run ZNC as root.");
         CUtils::PrintError("ZNC will start in 30 seconds.");
-        sleep(30);
+        Sleep(30);
     }
 
     if (bMakeConf) {
@@ -470,64 +557,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (bForeground) {
-        int iPid = getpid();
-        CUtils::PrintMessage("Running in foreground [pid: " +
-                             CString(iPid) + "]");
+    int iPid = getpid();
+    CUtils::PrintMessage("Running in foreground [pid: " + CString(iPid) + "]");
 
-        pZNC->WritePidFile(iPid);
-        CUtils::PrintMessage(CZNC::GetTag());
-    } else {
-        CUtils::PrintAction("Forking into the background");
-
-        int iPid = fork();
-
-        if (iPid == -1) {
-            CUtils::PrintStatus(false, strerror(errno));
-            CZNC::DestroyInstance();
-            return 1;
-        }
-
-        if (iPid > 0) {
-            // We are the parent. We are done and will go to bed.
-            CUtils::PrintStatus(true, "[pid: " + CString(iPid) + "]");
-
-            pZNC->WritePidFile(iPid);
-            CUtils::PrintMessage(CZNC::GetTag());
-            /* Don't destroy pZNC here or it will delete the pid file. */
-            return 0;
-        }
-
-        /* fcntl() locks don't necessarily propagate to forked()
-         *   children.  Reacquire the lock here.  Use the blocking
-         *   call to avoid race condition with parent exiting.
-         */
-        if (!pZNC->WaitForChildLock()) {
-            CUtils::PrintError(
-                "Child was unable to obtain lock on config file.");
-            CZNC::DestroyInstance();
-            return 1;
-        }
-
-        // Redirect std in/out/err to /dev/null
-        close(0);
-        open("/dev/null", O_RDONLY);
-        close(1);
-        open("/dev/null", O_WRONLY);
-        close(2);
-        open("/dev/null", O_WRONLY);
-
-        CDebug::SetStdoutIsTTY(false);
-
-        // We are the child. There is no way we can be a process group
-        // leader, thus setsid() must succeed.
-        setsid();
-        // Now we are in our own process group and session (no
-        // controlling terminal). We are independent!
-    }
+    pZNC->WritePidFile(iPid);
+    CUtils::PrintMessage(CZNC::GetTag());
 
     // Handle all signals in separate thread
-    std::unique_ptr<CSignalHandler> SignalHandler(new CSignalHandler(pZNC));
+   //std::unique_ptr<CSignalHandler> SignalHandler(new CSignalHandler(pZNC));
 
     int iRet = 0;
 
@@ -555,7 +592,7 @@ int main(int argc, char** argv) {
                 // The above code adds 3 entries to args tops
                 // which means the array should be big enough
 
-                SignalHandler.reset();
+                ///SignalHandler.reset();
                 CZNC::DestroyInstance();
                 execvp(args[0], args);
                 CUtils::PrintError("Unable to restart ZNC [" +
@@ -566,7 +603,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    SignalHandler.reset();
+    //SignalHandler.reset();
     CZNC::DestroyInstance();
 
     CUtils::PrintMessage("Exiting");

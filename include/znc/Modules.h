@@ -27,7 +27,7 @@
 #include <functional>
 #include <set>
 #include <queue>
-#include <sys/time.h>
+#include <ctime>
 
 // Forward Declarations
 class CAuthBase;
@@ -52,13 +52,7 @@ class CModInfo;
 #endif
 #endif
 
-#ifdef BUILD_WITH_CMAKE
 #include <znc/znc_export_lib_export.h>
-#elif HAVE_VISIBILITY
-#define ZNC_EXPORT_LIB_EXPORT __attribute__((__visibility__("default")))
-#else
-#define ZNC_EXPORT_LIB_EXPORT
-#endif
 
 /** C-style entry point to the module.
  *
@@ -215,7 +209,6 @@ class CFPTimer : public CTimer {
     FPTimer_t m_pFBCallback;
 };
 
-#ifdef HAVE_PTHREAD
 /// A CJob version which can be safely used in modules. The job will be
 /// cancelled when the module is unloaded.
 class CModuleJob : public CJob {
@@ -238,7 +231,6 @@ class CModuleJob : public CJob {
     const CString m_sName;
     const CString m_sDescription;
 };
-#endif
 
 typedef void* ModHandle;
 
@@ -1146,7 +1138,6 @@ class CModule {
     virtual void ListSockets();
 // !Socket stuff
 
-#ifdef HAVE_PTHREAD
     // Job stuff
     void AddJob(CModuleJob* pJob);
     void CancelJob(CModuleJob* pJob);
@@ -1154,7 +1145,6 @@ class CModule {
     void CancelJobs(const std::set<CModuleJob*>& sJobs);
     bool UnlinkJob(CModuleJob* pJob);
 // !Job stuff
-#endif
 
     // Command stuff
     /// Register the "Help" command.
@@ -1364,9 +1354,7 @@ class CModule {
     CString m_sDescription;
     std::set<CTimer*> m_sTimers;
     std::set<CSocket*> m_sSockets;
-#ifdef HAVE_PTHREAD
     std::set<CModuleJob*> m_sJobs;
-#endif
     ModHandle m_pDLL;
     CSockManager* m_pManager;
     CUser* m_pUser;

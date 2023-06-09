@@ -79,7 +79,7 @@ class CCertMod : public CModule {
         } else if (sPageName == "update") {
             CFile fPemFile(PemFile());
 
-            if (fPemFile.Open(O_WRONLY | O_TRUNC | O_CREAT)) {
+            if (fPemFile.Open(_O_WRONLY | _O_TRUNC | _O_CREAT)) {
                 fPemFile.Write(WebSock.GetParam("cert", true, ""));
                 fPemFile.Close();
             }

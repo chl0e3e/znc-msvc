@@ -208,7 +208,7 @@ class CSASLMod : public CModule {
         /* The spec requires authentication data to be sent in chunks */
         const size_t chunkSize = 400;
         for (size_t offset = 0; offset < sAuthLine.length(); offset += chunkSize) {
-            size_t size = std::min(chunkSize, sAuthLine.length() - offset);
+            size_t size = min(chunkSize, sAuthLine.length() - offset);
             PutIRC("AUTHENTICATE " + sAuthLine.substr(offset, size));
         }
         if (sAuthLine.length() % chunkSize == 0) {

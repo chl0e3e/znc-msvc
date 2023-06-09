@@ -185,19 +185,21 @@ void CZNCSock::SetEncoding(const CString& sEncoding) {
 #endif
 }
 
-#ifdef HAVE_PTHREAD
+//#ifdef HAVE_PTHREAD
 class CSockManager::CThreadMonitorFD : public CSMonitorFD {
   public:
     CThreadMonitorFD() { Add(CThreadPool::Get().getReadFD(), ECT_Read); }
-
-    bool FDsThatTriggered(const std::map<int, short>& miiReadyFds) override {
+    /*
+	virtual bool FDsThatTriggered( const std::map< cs_sock_t, short > & miiReadyFds ) { return( true ); }
+*/
+    bool FDsThatTriggered(const std::map<cs_sock_t, short>& miiReadyFds) override {
         if (miiReadyFds.find(CThreadPool::Get().getReadFD())->second) {
             CThreadPool::Get().handlePipeReadable();
         }
         return true;
     }
 };
-#endif
+//#endif
 
 #ifdef HAVE_THREADED_DNS
 void CSockManager::CDNSJob::runThread() {

@@ -16,7 +16,7 @@
 
 #include <znc/SSLVerifyHost.h>
 #include <znc/Translation.h>
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
 
 #ifdef HAVE_LIBSSL
 #if defined(OPENSSL_VERSION_NUMBER) && !defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100007

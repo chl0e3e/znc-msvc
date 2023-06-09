@@ -176,7 +176,7 @@ class CIRCNetwork : private CCoreTranslationMixin {
 
     /// @deprecated
     void AddRawBuffer(const CString& sFormat, const CString& sText = "") {
-        m_RawBuffer.AddLine(sFormat, sText);
+        m_RawBuffer.AddLine(sFormat, sText, 0, MCString());
     }
     /// @deprecated
     void UpdateRawBuffer(const CString& sMatch, const CString& sFormat,
@@ -200,7 +200,7 @@ class CIRCNetwork : private CCoreTranslationMixin {
 
     /// @deprecated
     void AddMotdBuffer(const CString& sFormat, const CString& sText = "") {
-        m_MotdBuffer.AddLine(sFormat, sText);
+        m_MotdBuffer.AddLine(sFormat, sText, 0, MCString());
     }
     /// @deprecated
     void UpdateMotdBuffer(const CString& sMatch, const CString& sFormat,
@@ -219,7 +219,7 @@ class CIRCNetwork : private CCoreTranslationMixin {
 
     /// @deprecated
     void AddNoticeBuffer(const CString& sFormat, const CString& sText = "") {
-        m_NoticeBuffer.AddLine(sFormat, sText);
+        m_NoticeBuffer.AddLine(sFormat, sText, 0, MCString());
     }
     /// @deprecated
     void UpdateNoticeBuffer(const CString& sMatch, const CString& sFormat,

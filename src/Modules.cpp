@@ -22,19 +22,19 @@
 #include <znc/IRCNetwork.h>
 #include <znc/WebModules.h>
 #include <znc/znc.h>
-#include <dlfcn.h>
+//#include <dlfcn.h>
 
 using std::map;
 using std::set;
 using std::vector;
 
 bool ZNC_NO_NEED_TO_DO_ANYTHING_ON_MODULE_CALL_EXITER;
-
+/*
 #ifndef RTLD_LOCAL
 #define RTLD_LOCAL 0
 #warning "your crap box doesn't define RTLD_LOCAL !?"
 #endif
-
+*/
 #define MODUNLOADCHK(func)                              \
     for (CModule * pMod : *this) {                      \
         try {                                           \
@@ -105,10 +105,10 @@ CTimer::CTimer(CModule* pModule, unsigned int uInterval, unsigned int uCycles,
     SetName(sLabel);
 
     // Make integration test faster
-    char* szDebugTimer = getenv("ZNC_DEBUG_TIMER");
-    if (szDebugTimer && *szDebugTimer == '1') {
-        uInterval = std::max(1u, uInterval / 4u);
-    }
+    //char* szDebugTimer = getenv("ZNC_DEBUG_TIMER");
+    ///if (szDebugTimer && *szDebugTimer == '1') {
+    //    uInterval = std::max(1u, uInterval / 4u);
+    //}
 
     if (uCycles) {
         StartMaxCycles(uInterval, uCycles);
@@ -132,9 +132,7 @@ CModule::CModule(ModHandle pDLL, CUser* pUser, CIRCNetwork* pNetwork,
       m_sDescription(""),
       m_sTimers(),
       m_sSockets(),
-#ifdef HAVE_PTHREAD
       m_sJobs(),
-#endif
       m_pDLL(pDLL),
       m_pManager(&(CZNC::Get().GetManager())),
       m_pUser(pUser),
@@ -170,9 +168,7 @@ CModule::~CModule() {
 
     SaveRegistry();
 
-#ifdef HAVE_PTHREAD
     CancelJobs(m_sJobs);
-#endif
 }
 
 void CModule::SetUser(CUser* pUser) { m_pUser = pUser; }
@@ -241,7 +237,7 @@ bool CModule::LoadRegistry() {
 
 bool CModule::SaveRegistry() const {
     // CString sPrefix = (m_pUser) ? m_pUser->GetUsername() : ".global";
-    return (m_mssRegistry.WriteToDisk(GetSavePath() + "/.registry", 0600) ==
+    return (m_mssRegistry.WriteToDisk(GetSavePath() + "/.registry") ==
             MCString::MCS_SUCCESS);
 }
 
@@ -468,7 +464,6 @@ void CModule::ListSockets() {
     PutModule(Table);
 }
 
-#ifdef HAVE_PTHREAD
 CModuleJob::~CModuleJob() { m_pModule->UnlinkJob(this); }
 
 void CModule::AddJob(CModuleJob* pJob) {
@@ -500,7 +495,6 @@ void CModule::CancelJobs(const std::set<CModuleJob*>& sJobs) {
 }
 
 bool CModule::UnlinkJob(CModuleJob* pJob) { return 0 != m_sJobs.erase(pJob); }
-#endif
 
 bool CModule::AddCommand(const CModCommand& Command) {
     if (Command.GetFunction() == nullptr) return false;
@@ -1131,7 +1125,31 @@ bool CModules::OnPostRehash() {
     return false;
 }
 bool CModules::OnIRCConnected() {
-    MODUNLOADCHK(OnIRCConnected());
+    for (CModule* pMod : *this) {
+        try {
+            CClient* pOldClient = pMod->GetClient();
+            pMod->SetClient(m_pClient);
+            CUser* pOldUser = nullptr;
+            if (m_pUser) {
+                pOldUser = pMod->GetUser();
+                pMod->SetUser(m_pUser);
+            }
+            CIRCNetwork* pNetwork = nullptr;
+            if (m_pNetwork) {
+                pNetwork = pMod->GetNetwork();
+                pMod->SetNetwork(m_pNetwork);
+            }
+            pMod->OnIRCConnected();
+            if (m_pUser) pMod->SetUser(pOldUser);
+            if (m_pNetwork) pMod->SetNetwork(pNetwork);
+            pMod->SetClient(pOldClient);
+        } catch (const CModule::EModException& e) {
+            if (e == CModule::UNLOAD) {
+                UnloadModule(pMod->GetModName());
+            }
+        }
+    }
+    //    MODUNLOADCHK(OnIRCConnected());
     return false;
 }
 bool CModules::OnIRCConnecting(CIRCSock* pIRCSock) {
@@ -1674,20 +1692,20 @@ bool CModules::LoadModule(const CString& sModule, const CString& sArgs,
     if (!p) return false;
 
     if (!Info.SupportsType(eType)) {
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         sRetMsg = t_f("Module {1} does not support module type {2}.")(
             sModule, CModInfo::ModuleTypeToString(eType));
         return false;
     }
 
     if (!pUser && eType == CModInfo::UserModule) {
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         sRetMsg = t_f("Module {1} requires a user.")(sModule);
         return false;
     }
 
     if (!pNetwork && eType == CModInfo::NetworkModule) {
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         sRetMsg = t_f("Module {1} requires a network.")(sModule);
         return false;
     }
@@ -1759,7 +1777,7 @@ bool CModules::UnloadModule(const CString& sModule, CString& sRetMsg) {
             }
         }
 
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         sRetMsg = t_f("Module {1} unloaded.")(sMod);
 
         return true;
@@ -1823,6 +1841,7 @@ bool CModules::GetModInfo(CModInfo& ModInfo, const CString& sModule,
 bool CModules::GetModPathInfo(CModInfo& ModInfo, const CString& sModule,
                               const CString& sModPath, CString& sRetMsg) {
     if (!ValidateModuleName(sModule, sRetMsg)) {
+        printf("Unable to validate module name\n");
         return false;
     }
 
@@ -1832,7 +1851,7 @@ bool CModules::GetModPathInfo(CModInfo& ModInfo, const CString& sModule,
     ModHandle p = OpenModule(sModule, sModPath, ModInfo, sRetMsg);
     if (!p) return false;
 
-    dlclose(p);
+    FreeLibrary((HMODULE)p);
 
     return true;
 }
@@ -1841,13 +1860,13 @@ void CModules::GetAvailableMods(set<CModInfo>& ssMods,
                                 CModInfo::EModuleType eType) {
     ssMods.clear();
 
-    unsigned int a = 0;
+    unsigned int a = 0; 
     CDir Dir;
 
     ModDirList dirs = GetModDirs();
 
     while (!dirs.empty()) {
-        Dir.FillByWildcard(dirs.front().first, "*.so");
+        Dir.FillByWildcard(dirs.front().first, "*.dll");
         dirs.pop();
 
         for (a = 0; a < Dir.size(); a++) {
@@ -1855,7 +1874,7 @@ void CModules::GetAvailableMods(set<CModInfo>& ssMods,
             CString sName = File.GetShortName();
             CString sPath = File.GetLongName();
             CModInfo ModInfo;
-            sName.RightChomp(3);
+            sName.RightChomp(4);
 
             CString sIgnoreRetMsg;
             if (GetModPathInfo(ModInfo, sName, sPath, sIgnoreRetMsg)) {
@@ -1894,7 +1913,7 @@ bool CModules::FindModPath(const CString& sModule, CString& sModPath,
                            CString& sDataPath) {
     CString sMod = sModule;
     CString sDir = sMod;
-    if (!sModule.Contains(".")) sMod += ".so";
+    if (!sModule.Contains(".")) sMod += ".dll";
 
     ModDirList dirs = GetModDirs();
 
@@ -1916,11 +1935,12 @@ CModules::ModDirList CModules::GetModDirs() {
     ModDirList ret;
     CString sDir;
 
-#ifdef RUN_FROM_SOURCE
+    sDir = "D:\\znc_msvc\\ZNC\\out\\install\\x64-debug\\lib\\znc\\";
+    ret.push(std::make_pair(sDir, "D:\\znc_msvc\\ZNC\\out\\install\\x64-debug\\share\\znc\\modules\\"));
+
     // ./modules
-    sDir = CZNC::Get().GetCurPath() + "/modules/";
-    ret.push(std::make_pair(sDir, sDir + "data/"));
-#endif
+    sDir = CZNC::Get().GetCurPath() + "modules\\";
+    ret.push(std::make_pair(sDir, sDir + "data\\"));
 
     // ~/.znc/modules
     sDir = CZNC::Get().GetModPath() + "/";
@@ -1954,22 +1974,21 @@ ModHandle CModules::OpenModule(const CString& sModule, const CString& sModPath,
     // on loads own modules (which it apparently does with RTLD_LAZY), we will
     // die in a name lookup since one of perl's symbols isn't found. That's
     // worse than any theoretical issue with RTLD_GLOBAL.
-    ModHandle p = dlopen((sModPath).c_str(), RTLD_NOW | RTLD_GLOBAL);
+    ModHandle p = LoadLibraryA((sModPath).c_str());
 
     if (!p) {
         // dlerror() returns pointer to static buffer, which may be overwritten
         // very soon with another dl call also it may just return null.
-        const char* cDlError = dlerror();
-        CString sDlError = cDlError ? cDlError : t_s("Unknown error");
-        sRetMsg = t_f("Unable to open module {1}: {2}")(sModule, sDlError);
+        CString sDlError = t_s("Unknown error");
+        sRetMsg = t_f("Unable to open module {1}: {2}")(sModule);
         return nullptr;
     }
 
     const CModuleEntry* (*fpZNCModuleEntry)() = nullptr;
     // man dlsym(3) explains this
-    *reinterpret_cast<void**>(&fpZNCModuleEntry) = dlsym(p, "ZNCModuleEntry");
+    *reinterpret_cast<void**>(&fpZNCModuleEntry) = GetProcAddress((HINSTANCE)p, "ZNCModuleEntry");
     if (!fpZNCModuleEntry) {
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         sRetMsg = t_f("Could not find ZNCModuleEntry in module {1}")(sModule);
         return nullptr;
     }
@@ -1982,7 +2001,7 @@ ModHandle CModules::OpenModule(const CString& sModule, const CString& sModPath,
             "{3}. Recompile this module.")(
             sModule, VERSION_STR VERSION_EXTRA,
             CString(pModuleEntry->pcVersion) + pModuleEntry->pcVersionExtra);
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         return nullptr;
     }
 
@@ -1992,7 +2011,7 @@ ModHandle CModules::OpenModule(const CString& sModule, const CString& sModPath,
             "Module {1} is built incompatibly: core is '{2}', module is '{3}'. "
             "Recompile this module.")(sModule, ZNC_COMPILE_OPTIONS_STRING,
                                       pModuleEntry->pcCompileOptions);
-        dlclose(p);
+        FreeLibrary((HMODULE)p);
         return nullptr;
     }
 

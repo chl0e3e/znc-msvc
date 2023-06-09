@@ -42,16 +42,16 @@
 
 class CDebug {
   public:
-    static void SetStdoutIsTTY(bool b) { stdoutIsTTY = b; }
-    static bool StdoutIsTTY() { return stdoutIsTTY; }
-    static void SetDebug(bool b) { debug = b; }
-    static bool Debug() { return debug; }
+    static void SetStdoutIsTTY(bool b) {  }
+    static bool StdoutIsTTY() { return true; }
+    static void SetDebug(bool b) {  }
+    static bool Debug() { return true; }
 
     static CString Filter(const CString& sUnfilteredLine);
 
-  protected:
-    static bool stdoutIsTTY;
-    static bool debug;
+  //protected:
+  //  static bool stdoutIsTTY;
+  //  static bool debug;
 };
 
 class CDebugStream : public std::ostringstream {

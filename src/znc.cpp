@@ -118,19 +118,7 @@ CString CZNC::GetVersion() {
 }
 
 CString CZNC::GetTag(bool bIncludeVersion, bool bHTML) {
-    if (!Get().m_bHideVersion) {
-        bIncludeVersion = true;
-    }
-    CString sAddress = bHTML ? "<a href=\"https://znc.in\">https://znc.in</a>"
-                             : "https://znc.in";
-
-    if (!bIncludeVersion) {
-        return "ZNC - " + sAddress;
-    }
-
-    CString sVersion = GetVersion();
-
-    return "ZNC " + sVersion + " - " + sAddress;
+    return "ZNC";
 }
 
 CString CZNC::GetCompileOptionsString() {
@@ -138,8 +126,7 @@ CString CZNC::GetCompileOptionsString() {
 }
 
 CString CZNC::GetUptime() const {
-    time_t now = time(nullptr);
-    return CString::ToTimeStr(now - TimeStarted());
+    return "forever";
 }
 
 bool CZNC::OnBoot() {
@@ -268,7 +255,7 @@ bool CZNC::WritePidFile(int iPid) {
     CUtils::PrintAction("Writing pid file [" + File->GetLongName() + "]");
 
     bool bRet = false;
-    if (File->Open(O_WRONLY | O_TRUNC | O_CREAT)) {
+    if (File->Open(_O_WRONLY | _O_TRUNC | _O_CREAT)) {
         File->Write(CString(iPid) + "\n");
         File->Close();
         bRet = true;
@@ -354,24 +341,24 @@ void CZNC::InitDirs(const CString& sArgvPath, const CString& sDataDir) {
     // dir onto our cwd
     CString::size_type uPos = sArgvPath.rfind('/');
     if (uPos == CString::npos)
-        m_sCurPath = "./";
+        m_sCurPath = ".\\";
     else
-        m_sCurPath = CDir::ChangeDir("./", sArgvPath.Left(uPos), "");
+        m_sCurPath = CDir::ChangeDir(".\\", sArgvPath.Left(uPos), "");
 
     // Try to set the user's home dir, default to binpath on failure
     CFile::InitHomePath(m_sCurPath);
 
     if (sDataDir.empty()) {
-        m_sZNCPath = CFile::GetHomePath() + "/.znc";
+        m_sZNCPath = CFile::GetHomePath() + "\\.znc";
     } else {
         m_sZNCPath = sDataDir;
     }
 
-    m_sSSLCertFile = m_sZNCPath + "/znc.pem";
+    m_sSSLCertFile = m_sZNCPath + "\\znc.pem";
 }
 
 CString CZNC::GetConfPath(bool bAllowMkDir) const {
-    CString sConfPath = m_sZNCPath + "/configs";
+    CString sConfPath = m_sZNCPath + "\\configs";
     if (bAllowMkDir && !CFile::Exists(sConfPath)) {
         CDir::MakeDir(sConfPath);
     }
@@ -380,7 +367,7 @@ CString CZNC::GetConfPath(bool bAllowMkDir) const {
 }
 
 CString CZNC::GetUserPath() const {
-    CString sUserPath = m_sZNCPath + "/users";
+    CString sUserPath = m_sZNCPath + "\\users";
     if (!CFile::Exists(sUserPath)) {
         CDir::MakeDir(sUserPath);
     }
@@ -389,8 +376,8 @@ CString CZNC::GetUserPath() const {
 }
 
 CString CZNC::GetModPath() const {
-    CString sModPath = m_sZNCPath + "/modules";
-
+    CString sModPath = m_sZNCPath + "\\modules";
+        
     return sModPath;
 }
 
@@ -404,10 +391,11 @@ const CString& CZNC::GetCurPath() const {
 const CString& CZNC::GetHomePath() const { return CFile::GetHomePath(); }
 
 const CString& CZNC::GetZNCPath() const {
-    if (!CFile::Exists(m_sZNCPath)) {
-        CDir::MakeDir(m_sZNCPath);
-    }
-    return m_sZNCPath;
+    return CString("D:\\znc-data\\");
+    //if (!CFile::Exists(m_sZNCPath)) {
+    //    CDir::MakeDir(m_sZNCPath);
+    //}
+    //return m_sZNCPath;
 }
 
 CString CZNC::GetPemLocation() const {
@@ -428,12 +416,12 @@ CString CZNC::ExpandConfigPath(const CString& sConfigFile, bool bAllowMkDir) {
     CString sRetPath;
 
     if (sConfigFile.empty()) {
-        sRetPath = GetConfPath(bAllowMkDir) + "/znc.conf";
+        sRetPath = GetConfPath(bAllowMkDir) + "\\znc.conf";
     } else {
-        if (sConfigFile.StartsWith("./") || sConfigFile.StartsWith("../")) {
-            sRetPath = GetCurPath() + "/" + sConfigFile;
+        if (sConfigFile.StartsWith(".\\") || sConfigFile.StartsWith("..\\")) {
+            sRetPath = GetCurPath() + "\\" + sConfigFile;
         } else if (!sConfigFile.StartsWith("/")) {
-            sRetPath = GetConfPath(bAllowMkDir) + "/" + sConfigFile;
+            sRetPath = GetConfPath(bAllowMkDir) + "\\" + sConfigFile;
         } else {
             sRetPath = sConfigFile;
         }
@@ -451,7 +439,7 @@ bool CZNC::WriteConfig() {
     // We first write to a temporary file and then move it to the right place
     CFile* pFile = new CFile(GetConfigFile() + "~");
 
-    if (!pFile->Open(O_WRONLY | O_CREAT | O_TRUNC, 0600)) {
+    if (!pFile->Open(_O_WRONLY | _O_CREAT | _O_TRUNC)) {
         DEBUG("Could not write config to " + GetConfigFile() + "~: " +
               CString(strerror(errno)));
         delete pFile;
@@ -461,13 +449,13 @@ bool CZNC::WriteConfig() {
     // We have to "transfer" our lock on the config to the new file.
     // The old file (= inode) is going away and thus a lock on it would be
     // useless. These lock should always succeed (races, anyone?).
-    if (!pFile->TryExLock()) {
+    /* if (!pFile->TryExLock()) {
         DEBUG("Error while locking the new config file, errno says: " +
               CString(strerror(errno)));
         pFile->Delete();
         delete pFile;
         return false;
-    }
+    }*/
 
     pFile->Write(MakeConfigHeader() + "\n");
 
@@ -736,7 +724,7 @@ bool CZNC::WriteNewConfig(const CString& sConfigFile) {
     vsLines.push_back("<User " + sUser + ">");
     CString sSalt;
     sAnswer = CUtils::GetSaltedHashPass(sSalt);
-    vsLines.push_back("\tPass       = " + CUtils::sDefaultHash + "#" + sAnswer +
+    vsLines.push_back("\tPass       = sha256#" + sAnswer +
                       "#" + sSalt + "#");
 
     vsLines.push_back("\tAdmin      = true");
@@ -869,7 +857,7 @@ bool CZNC::WriteNewConfig(const CString& sConfigFile) {
 
         if (bFileOK) {
             File.SetFileName(m_sConfigFile);
-            if (File.Open(O_WRONLY | O_CREAT | O_TRUNC, 0600)) {
+            if (File.Open(_O_WRONLY | _O_CREAT | _O_TRUNC)) {
                 bFileOpen = true;
             } else {
                 CUtils::PrintStatus(false, "Unable to open file");
@@ -952,7 +940,7 @@ bool CZNC::WriteNewConfig(const CString& sConfigFile) {
         sProtocol + "://<znc_server_ip>:" + CString(uListenPort) + "/", true);
     CUtils::PrintMessage("");
 
-    File.UnLock();
+    //File.UnLock();
 
     bool bWantLaunch = bFileOpen;
     if (bWantLaunch) {
@@ -1023,19 +1011,19 @@ bool CZNC::ReadConfig(CConfig& config, CString& sError) {
 
     // need to open the config file Read/Write for fcntl()
     // exclusive locking to work properly!
-    if (!pFile->Open(m_sConfigFile, O_RDWR)) {
+    if (!pFile->Open(m_sConfigFile, _O_RDWR | _O_BINARY)) {
         sError = "Can not open config file";
         CUtils::PrintStatus(false, sError);
         delete pFile;
         return false;
     }
 
-    if (!pFile->TryExLock()) {
+    /*if (!pFile->TryExLock()) {
         sError = "ZNC is already running on this config.";
         CUtils::PrintStatus(false, sError);
         delete pFile;
         return false;
-    }
+    }*/ 
 
     // (re)open the config file
     delete m_pLockFile;
@@ -2131,7 +2119,7 @@ void CZNC::LeakConnectQueueTimer(CConnectQueueTimer* pTimer) {
     if (m_pConnectQueueTimer == pTimer) m_pConnectQueueTimer = nullptr;
 }
 
-bool CZNC::WaitForChildLock() { return m_pLockFile && m_pLockFile->ExLock(); }
+bool CZNC::WaitForChildLock() { return 1; }
 
 void CZNC::DisableConfigTimer() {
     if (m_pConfigTimer) {

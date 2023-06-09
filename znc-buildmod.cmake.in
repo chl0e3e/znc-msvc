@@ -53,8 +53,12 @@ parser.add_argument('-v', '--verbose', action='count', default=0,
 parser.add_argument('files', nargs='+', metavar='file.cpp',
         help="path to the module's source file")
 args = parser.parse_args()
+with open(os.path.join('D:\tmp\test.txt'), "w") as cm:
+    cm.write("test")
 
 with tempfile.TemporaryDirectory() as cmdir:
+    cmdir = "D:\tmp\"
+    args.verbose = 10
     with open(os.path.join(cmdir, 'CMakeLists.txt'), 'w') as cm:
         print('cmake_minimum_required(VERSION 3.1)', file=cm)
         print('project(ExternalModules LANGUAGES CXX)', file=cm)

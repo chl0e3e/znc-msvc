@@ -305,7 +305,7 @@ class CAliasMod : public CModule {
             PutModule("/msg " + GetModNick() + " Create " + i->first);
             if (!i->second.empty()) {
                 VCString it;
-                uint idx;
+                uint32_t idx;
                 i->second.Split("\n", it);
 
                 for (idx = 0; idx < it.size(); ++idx) {

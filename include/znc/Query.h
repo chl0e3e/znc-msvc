@@ -44,9 +44,9 @@ class CQuery {
         return m_Buffer.AddLine(Format, sText);
     }
     /// @deprecated
-    size_t AddBuffer(const CString& sFormat, const CString& sText = "",
-                     const timeval* ts = nullptr,
-                     const MCString& mssTags = MCString::EmptyMap) {
+    size_t AddBuffer(const CString& sFormat, const CString& sText,
+                     const timeval* ts,
+                     const MCString& mssTags ) {
         return m_Buffer.AddLine(sFormat, sText, ts, mssTags);
     }
     void ClearBuffer() { m_Buffer.Clear(); }

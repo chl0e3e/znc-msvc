@@ -169,10 +169,8 @@ class CSockManager : public TSocketManager<CZNCSock>,
 
     std::map<Csock*, bool /* deleted */> m_InFlightDnsSockets;
 
-#ifdef HAVE_PTHREAD
     class CThreadMonitorFD;
     friend class CThreadMonitorFD;
-#endif
 #ifdef HAVE_THREADED_DNS
     struct TDNSTask {
         TDNSTask()

@@ -452,7 +452,7 @@ class CAway : public CModule {
 
         CFile File(sMessages);
 
-        if (sMessages.empty() || !File.Open() || !File.ReadFile(sFile)) {
+        if (sMessages.empty() || !File.Open() || !File.XReadFile(sFile)) {
             PutModule(t_s("Unable to find buffer"));
             return (true);  // gonna be successful here
         }

@@ -493,7 +493,7 @@ void CDCCSock::SendPacket() {
     }
 
     char szBuf[4096];
-    ssize_t iLen = m_pFile->Read(szBuf, 4096);
+    SSIZE_T iLen = m_pFile->Read(szBuf, 4096);
 
     if (iLen < 0) {
         if (m_bSend) {
@@ -556,7 +556,7 @@ CFile* CDCCSock::OpenFile(bool bWrite) {
             return nullptr;
         }
 
-        if (!m_pFile->Open(O_WRONLY | O_TRUNC | O_CREAT)) {
+        if (!m_pFile->Open(_O_WRONLY | _O_TRUNC | _O_CREAT)) {
             delete m_pFile;
             m_pFile = nullptr;
             m_pModule->PutModule(

@@ -692,7 +692,7 @@ void CChan::SendBuffer(CClient* pClient, const CBuffer& Buffer) {
                 for (size_t uIdx = 0; uIdx < uSize; uIdx++) {
                     const CBufLine& BufLine = Buffer.GetBufLine(uIdx);
                     CMessage Message =
-                        BufLine.ToMessage(*pUseClient, MCString::EmptyMap);
+                        BufLine.ToMessage(*pUseClient, MCString());
                     Message.SetChan(this);
                     Message.SetNetwork(m_pNetwork);
                     Message.SetClient(pUseClient);

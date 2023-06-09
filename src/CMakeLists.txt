@@ -27,8 +27,16 @@ set(znc_cpp "ZNCString.cpp" "znc.cpp" "IRCNetwork.cpp" "Translation.cpp"
 	"Threads.cpp" "Query.cpp" "SSLVerifyHost.cpp" "Message.cpp" "User.cpp")
 znc_add_library(znclib ${lib_type} ${znc_cpp} "Csocket.cpp" "versionc.cpp"
 	${cctz_cc})
-znc_add_executable(znc "main.cpp")
-target_link_libraries(znc PRIVATE znclib)
+#add_library(znca SHARED "main.cpp")
+
+set_target_properties(znclib PROPERTIES
+	COMPILE_OPTIONS "/Iznc;znc/zncconfig.h"
+	INTERFACE_COMPILE_OPTIONS "/Iznc;znc/zncconfig.h"
+	POSITION_INDEPENDENT_CODE true
+	INTERFACE_POSITION_INDEPENDENT_CODE true
+	# This option is relevant only on non-cygwi
+	ENABLE_EXPORTS true)
+
 
 copy_csocket(copy_csocket_cc
 	"${PROJECT_SOURCE_DIR}/third_party/Csocket/Csocket.cc"
@@ -83,47 +91,70 @@ if(Boost_FOUND)
 	list(APPEND znc_include_dirs ${Boost_INCLUDE_DIRS})
 endif()
 target_link_libraries(znclib PRIVATE cctz::cctz)
-target_include_directories(znc PUBLIC ${znc_include_dirs})
+#target_include_directories(znc PUBLIC ${znc_include_dirs})
 target_include_directories(znclib PUBLIC ${znc_include_dirs})
+#target_include_directories(znca PUBLIC ${znc_include_dirs})
 
-set_target_properties(znclib ${znc_link} PROPERTIES
-	COMPILE_OPTIONS "-include;znc/zncconfig.h"
-	INTERFACE_COMPILE_OPTIONS "-include;znc/zncconfig.h"
+set_target_properties(znclib PROPERTIES
+	COMPILE_OPTIONS "/Iinclude;znc/zncconfig.h"
+	INTERFACE_COMPILE_OPTIONS "/Iinclude;znc/zncconfig.h"
 	POSITION_INDEPENDENT_CODE true
 	INTERFACE_POSITION_INDEPENDENT_CODE true
-	# This option is relevant only on non-cygwin
+	# This option is relevant only on non-cygwi
 	ENABLE_EXPORTS true)
 # The following options are relevant only on cygwin
 set_target_properties(znclib PROPERTIES
-	OUTPUT_NAME "znc"
+	OUTPUT_NAME "libznc"	
 	SOVERSION "${ZNC_VERSION}")
 
 # CMake started supporting metafeature cxx_std_11 only in 3.8
 set(required_cxx11_features
 	cxx_range_for cxx_nullptr cxx_override
 	cxx_lambdas cxx_auto_type)
-target_compile_features(znc PUBLIC ${required_cxx11_features})
+#target_compile_features(znc PUBLIC ${required_cxx11_features})
 target_compile_features(znclib PUBLIC ${required_cxx11_features})
 
+#add_library(ZNC OBJECT znclib)
+add_library(ZNCEXEE SHARED ${znc_cpp} "Csocket.cpp" "versionc.cpp" ${cctz_cc})
+target_include_directories(ZNCEXEE PUBLIC ${znc_include_dirs})
+add_executable(ZNCEXE "main.cpp")
+target_link_libraries(ZNCEXE PRIVATE ZNCEXEE)
+
+
+set_target_properties(ZNCEXE PROPERTIES
+	COMPILE_OPTIONS "/Iinclude\\;znc\\zncconfig.h"
+	INTERFACE_COMPILE_OPTIONS "/Iinclude\\;znc\\zncconfig.h"
+	POSITION_INDEPENDENT_CODE true
+	INTERFACE_POSITION_INDEPENDENT_CODE true
+	# This option is relevant only on non-cygwi
+	ENABLE_EXPORTS true)
+
+target_compile_features(ZNCEXE PUBLIC ${required_cxx11_features})
+target_compile_features(ZNCEXEE PUBLIC ${required_cxx11_features})
+
 add_library(ZNC INTERFACE)
-target_link_libraries(ZNC INTERFACE ${znc_link})
+target_link_libraries(ZNC INTERFACE znc)
 target_compile_definitions(ZNC INTERFACE "znc_export_lib_EXPORTS")
+#target_compile_definitions(ZNC INTERFACE "znc_export_lib_EXPORTS")
 
 if(HAVE_I18N)
 	add_subdirectory(po)
 endif()
 
 
-install(TARGETS znc ${install_lib}
-	EXPORT znc_internal
+install(TARGETS ZNCEXE
+	EXPORT ZNCEXE 
 	RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-	# this one is libznc.dll.a for cygwin
-	ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-install(TARGETS ZNC EXPORT znc_public)
-install(EXPORT znc_internal
-	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/cmake"
-	NAMESPACE ZNC::internal::)
-install(EXPORT znc_public
-	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/cmake"
-	NAMESPACE ZNC::)
+	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(TARGETS ZNCEXEE
+	EXPORT ZNCEXEE 
+	RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+	LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+#install(TARGETS ZNC EXPORT ZNCEXE)
+#install(TARGETS ZNC EXPORT znc_public)
+#install(EXPORT znc_internal
+#	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/cmake"
+#	NAMESPACE ZNC::internal::)
+#install(EXPORT znc_public
+#	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/cmake"
+#	NAMESPACE ZNC::)

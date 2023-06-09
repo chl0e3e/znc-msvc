@@ -16,7 +16,7 @@
 
 #include <znc/Threads.h>
 
-#ifdef HAVE_PTHREAD
+//#ifdef HAVE_PTHREAD
 
 #include <znc/ZNCDebug.h>
 #include <algorithm>
@@ -43,10 +43,10 @@ CThreadPool::CThreadPool()
       m_num_idle(0),
       m_iJobPipe{0, 0},
       m_jobs() {
-    if (pipe(m_iJobPipe)) {
-        DEBUG("Ouch, can't open pipe for thread pool: " << strerror(errno));
-        exit(1);
-    }
+    ///if (pipe(m_iJobPipe)) {
+    //    DEBUG("Ouch, can't open pipe for thread pool: " << strerror(errno));
+    //    exit(1);
+    //}
 }
 
 void CThreadPool::jobDone(CJob* job) {
@@ -64,34 +64,34 @@ void CThreadPool::jobDone(CJob* job) {
     // This write() must succeed because POSIX guarantees that writes of
     // less than PIPE_BUF are atomic (and PIPE_BUF is at least 512).
     // (Yes, this really wants to write a pointer(!) to the pipe.
-    size_t w = write(m_iJobPipe[1], &job, sizeof(job));
+    /* size_t w = write(m_iJobPipe[1], &job, sizeof(job));
     if (w != sizeof(job)) {
         DEBUG(
             "Something bad happened during write() to a pipe for thread pool, "
             "wrote "
             << w << " bytes: " << strerror(errno));
         exit(1);
-    }
+    }*/
 }
 
 void CThreadPool::handlePipeReadable() const { finishJob(getJobFromPipe()); }
 
 CJob* CThreadPool::getJobFromPipe() const {
     CJob* a = nullptr;
-    ssize_t need = sizeof(a);
+    /* ssize_t need = sizeof(a);
     ssize_t r = read(m_iJobPipe[0], &a, need);
     if (r != need) {
         DEBUG(
             "Something bad happened during read() from a pipe for thread pool: "
             << strerror(errno));
         exit(1);
-    }
+    }*/
     return a;
 }
 
 void CThreadPool::finishJob(CJob* job) const {
-    job->runMain();
-    delete job;
+    //job->runMain();
+    //delete job;
 }
 
 CThreadPool::~CThreadPool() {
@@ -270,5 +270,3 @@ bool CJob::wasCancelled() const {
     CMutexLocker guard(CThreadPool::Get().m_mutex);
     return m_eState == CANCELLED;
 }
-
-#endif  // HAVE_PTHREAD

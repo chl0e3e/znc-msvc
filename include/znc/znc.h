@@ -17,6 +17,22 @@
 #ifndef ZNC_H
 #define ZNC_H
 
+#ifndef WINDOWSH
+#define WIN32_LEAN_AND_MEAN  // Exclude rarely-used stuff from Windows headers
+#include <windows.h>
+#define WINDOWSH
+#endif
+
+#ifndef WINSOCKS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define WINSOCKS
+#endif
+
+#ifndef WSPRAG
+#pragma comment(lib, "ws2_32.lib")
+#define WSPRAG
+#endif
 #include <znc/zncconfig.h>
 #include <znc/Client.h>
 #include <znc/Modules.h>

@@ -16,7 +16,11 @@
 
 #ifndef ZNC_TEMPLATE_H
 #define ZNC_TEMPLATE_H
-
+#ifndef WINDOWSH
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define WINDOWSH
+#endif
 #include <znc/zncconfig.h>
 #include <znc/ZNCString.h>
 #include <iostream>

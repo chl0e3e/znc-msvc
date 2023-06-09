@@ -364,7 +364,7 @@ class CWatcherMod : public CModule {
                         
                         pQuery->AddBuffer(":" + _NAMEDFMT(WatchEntry.GetTarget()) +
                                           "!watch@znc.in PRIVMSG {target} :{text}",
-                                          sMessage);
+                                          sMessage, 0, MCString());
                     }
                 }
                 sHandledTargets.insert(WatchEntry.GetTarget());

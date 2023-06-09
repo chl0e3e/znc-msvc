@@ -18,12 +18,19 @@
 #include <znc/ExecSock.h>
 #include <znc/Utils.h>
 #include <fcntl.h>
-#include <pwd.h>
+//#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
+//#include <sys/wait.h>
 #include <time.h>
-
+#define _CRT_INTERNAL_NONSTDC_NAMES 1 
+#include <sys/stat.h> 
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+#define S_ISREG(m)(((m)&S_IFMT) == S_IFREG)
+#endif
+#if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+#define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#endif
 #ifndef HAVE_LSTAT
 #define lstat(a, b) stat(a, b)
 #endif
@@ -48,15 +55,15 @@ CFile::CFile(const CString& sLongName)
 CFile::~CFile() { Close(); }
 
 void CFile::SetFileName(const CString& sLongName) {
-    if (sLongName.StartsWith("~/")) {
+    if (sLongName.StartsWith("~/") || sLongName.StartsWith("~\\")) {
         m_sLongName = CFile::GetHomePath() + sLongName.substr(1);
     } else
         m_sLongName = sLongName;
 
     m_sShortName = sLongName;
-    m_sShortName.TrimRight("/");
+    m_sShortName.TrimRight("\\");
 
-    CString::size_type uPos = m_sShortName.rfind('/');
+    CString::size_type uPos = m_sShortName.rfind('\\');
     if (uPos != CString::npos) {
         m_sShortName = m_sShortName.substr(uPos + 1);
     }
@@ -130,16 +137,6 @@ bool CFile::FType(const CString& sFileName, EFileTypes eType, bool bUseLstat) {
             return S_ISREG(st.st_mode);
         case FT_DIRECTORY:
             return S_ISDIR(st.st_mode);
-        case FT_CHARACTER:
-            return S_ISCHR(st.st_mode);
-        case FT_BLOCK:
-            return S_ISBLK(st.st_mode);
-        case FT_FIFO:
-            return S_ISFIFO(st.st_mode);
-        case FT_LINK:
-            return S_ISLNK(st.st_mode);
-        case FT_SOCK:
-            return S_ISSOCK(st.st_mode);
         default:
             break;
     }
@@ -154,8 +151,6 @@ off_t CFile::GetSize() const { return CFile::GetSize(m_sLongName); }
 time_t CFile::GetATime() const { return CFile::GetATime(m_sLongName); }
 time_t CFile::GetMTime() const { return CFile::GetMTime(m_sLongName); }
 time_t CFile::GetCTime() const { return CFile::GetCTime(m_sLongName); }
-uid_t CFile::GetUID() const { return CFile::GetUID(m_sLongName); }
-gid_t CFile::GetGID() const { return CFile::GetGID(m_sLongName); }
 bool CFile::Exists(const CString& sFile) {
     struct stat st;
     return (stat(sFile.c_str(), &st) == 0);
@@ -185,15 +180,6 @@ time_t CFile::GetCTime(const CString& sFile) {
     return (stat(sFile.c_str(), &st) != 0) ? 0 : st.st_ctime;
 }
 
-uid_t CFile::GetUID(const CString& sFile) {
-    struct stat st;
-    return (stat(sFile.c_str(), &st) != 0) ? -1 : (int)st.st_uid;
-}
-
-gid_t CFile::GetGID(const CString& sFile) {
-    struct stat st;
-    return (stat(sFile.c_str(), &st) != 0) ? -1 : (int)st.st_gid;
-}
 int CFile::GetInfo(const CString& sFile, struct stat& st) {
     return stat(sFile.c_str(), &st);
 }
@@ -256,12 +242,12 @@ bool CFile::Copy(const CString& sOldFileName, const CString& sNewFileName,
         return false;
     }
 
-    if (!NewFile.Open(O_WRONLY | O_CREAT | O_TRUNC)) {
+    if (!NewFile.Open(_O_WRONLY | _O_CREAT | _O_TRUNC)) {
         return false;
     }
 
     char szBuf[8192];
-    ssize_t len = 0;
+    SSIZE_T len = 0;
 
     while ((len = OldFile.Read(szBuf, 8192))) {
         if (len < 0) {
@@ -282,32 +268,15 @@ bool CFile::Copy(const CString& sOldFileName, const CString& sNewFileName,
 
     struct stat st;
     GetInfo(sOldFileName, st);
-    Chmod(sNewFileName, st.st_mode);
 
     return true;
-}
-
-bool CFile::Chmod(mode_t mode) {
-    if (m_iFD == -1) {
-        errno = EBADF;
-        return false;
-    }
-    if (fchmod(m_iFD, mode) != 0) {
-        m_bHadError = true;
-        return false;
-    }
-    return true;
-}
-
-bool CFile::Chmod(const CString& sFile, mode_t mode) {
-    return (chmod(sFile.c_str(), mode) == 0);
 }
 
 bool CFile::Seek(off_t uPos) {
     /* This sets errno in case m_iFD == -1 */
     errno = EBADF;
 
-    if (m_iFD != -1 && lseek(m_iFD, uPos, SEEK_SET) == uPos) {
+    if (m_iFD != -1 && _lseek(m_iFD, uPos, SEEK_SET) == uPos) {
         ClearBuffer();
         return true;
     }
@@ -320,7 +289,7 @@ bool CFile::Truncate() {
     /* This sets errno in case m_iFD == -1 */
     errno = EBADF;
 
-    if (m_iFD != -1 && ftruncate(m_iFD, 0) == 0) {
+     if (m_iFD != -1 && _chsize_s(m_iFD, 0) == 0) {
         ClearBuffer();
         return true;
     }
@@ -334,17 +303,17 @@ bool CFile::Sync() {
     /* This sets errno in case m_iFD == -1 */
     errno = EBADF;
 
-    if (m_iFD != -1 && fsync(m_iFD) == 0) return true;
+    if (m_iFD != -1 && fflush((FILE*)m_iFD) == 0) return true;
     m_bHadError = true;
     return false;
 }
 
-bool CFile::Open(const CString& sFileName, int iFlags, mode_t iMode) {
+bool CFile::Open(const CString& sFileName, int iFlags) {
     SetFileName(sFileName);
-    return Open(iFlags, iMode);
+    return Open(iFlags);
 }
 
-bool CFile::Open(int iFlags, mode_t iMode) {
+bool CFile::Open(int iFlags) {
     if (m_iFD != -1) {
         errno = EEXIST;
         m_bHadError = true;
@@ -352,38 +321,39 @@ bool CFile::Open(int iFlags, mode_t iMode) {
     }
 
     // We never want to get a controlling TTY through this -> O_NOCTTY
-    iFlags |= O_NOCTTY;
+    //iFlags |= O_NOCTTY;
 
     // Some weird OS from MS needs O_BINARY or else it generates fake EOFs
     // when reading ^Z from a file.
-    iFlags |= O_BINARY;
+    iFlags |= _O_BINARY;
 
-    m_iFD = open(m_sLongName.c_str(), iFlags, iMode);
-    if (m_iFD < 0) {
+    printf("Long name: %s\n", m_sLongName.c_str());
+    errno_t err = _sopen_s(&m_iFD, m_sLongName.c_str(), iFlags, _SH_DENYNO, 0);
+    printf("errno_t: %d\n", err);
+    if (m_iFD == -1) {
         m_bHadError = true;
         return false;
     }
 
     /* Make sure this FD isn't given to childs */
-    SetFdCloseOnExec(m_iFD);
+    //SetFdCloseOnExec(m_iFD);
 
     return true;
 }
 
-ssize_t CFile::Read(char* pszBuffer, int iBytes) {
+SSIZE_T CFile::Read(char* pszBuffer, int iBytes) {
     if (m_iFD == -1) {
         errno = EBADF;
         return -1;
     }
-
-    ssize_t res = read(m_iFD, pszBuffer, iBytes);
+    SSIZE_T res = _read(m_iFD, pszBuffer, iBytes);
     if (res != iBytes) m_bHadError = true;
     return res;
 }
 
 bool CFile::ReadLine(CString& sData, const CString& sDelimiter) {
     char buff[4096];
-    ssize_t iBytes;
+    SSIZE_T iBytes;
 
     if (m_iFD == -1) {
         errno = EBADF;
@@ -398,9 +368,7 @@ bool CFile::ReadLine(CString& sData, const CString& sDelimiter) {
             m_sBuffer.erase(0, iFind + sDelimiter.length());
             return true;
         }
-
-        iBytes = read(m_iFD, buff, sizeof(buff));
-
+        iBytes = _read(m_iFD, buff, sizeof(buff));
         if (iBytes > 0) {
             m_sBuffer.append(buff, iBytes);
         }
@@ -419,14 +387,14 @@ bool CFile::ReadLine(CString& sData, const CString& sDelimiter) {
     return false;
 }
 
-bool CFile::ReadFile(CString& sData, size_t iMaxSize) {
+bool CFile::XReadFile(CString& sData, size_t iMaxSize) {
     char buff[4096];
     size_t iBytesRead = 0;
 
     sData.clear();
 
     while (iBytesRead < iMaxSize) {
-        ssize_t iBytes = Read(buff, sizeof(buff));
+        SSIZE_T iBytes = Read(buff, sizeof(buff));
 
         if (iBytes < 0)
             // Error
@@ -444,23 +412,22 @@ bool CFile::ReadFile(CString& sData, size_t iMaxSize) {
     return false;
 }
 
-ssize_t CFile::Write(const char* pszBuffer, size_t iBytes) {
+SSIZE_T CFile::Write(const char* pszBuffer, size_t iBytes) {
     if (m_iFD == -1) {
         errno = EBADF;
         return -1;
     }
-
-    ssize_t res = write(m_iFD, pszBuffer, iBytes);
+    SSIZE_T res = _write(m_iFD, pszBuffer, iBytes);
     if (-1 == res) m_bHadError = true;
     return res;
 }
 
-ssize_t CFile::Write(const CString& sData) {
+SSIZE_T CFile::Write(const CString& sData) {
     return Write(sData.data(), sData.size());
 }
 void CFile::Close() {
     if (m_iFD >= 0) {
-        if (close(m_iFD) < 0) {
+        if (_close(m_iFD) < 0) {
             m_bHadError = true;
             DEBUG("CFile::Close(): close() failed with [" << strerror(errno)
                                                           << "]");
@@ -472,9 +439,10 @@ void CFile::Close() {
 void CFile::ClearBuffer() { m_sBuffer.clear(); }
 
 bool CFile::TryExLock(const CString& sLockFile, int iFlags) {
-    return Open(sLockFile, iFlags) && TryExLock();
+    return Open(sLockFile, iFlags);
 }
 
+/*
 bool CFile::TryExLock() { return Lock(F_WRLCK, false); }
 
 bool CFile::ExLock() { return Lock(F_WRLCK, true); }
@@ -494,6 +462,7 @@ bool CFile::Lock(short iType, bool bBlocking) {
     fl.l_len = 0;
     return (fcntl(m_iFD, (bBlocking ? F_SETLKW : F_SETLK), &fl) != -1);
 }
+*/
 
 bool CFile::IsOpen() const { return (m_iFD != -1); }
 CString CFile::GetLongName() const { return m_sLongName; }
@@ -517,11 +486,7 @@ void CFile::InitHomePath(const CString& sFallback) {
     }
 
     if (m_sHomePath.empty()) {
-        const struct passwd* pUserInfo = getpwuid(getuid());
-
-        if (pUserInfo) {
-            m_sHomePath = pUserInfo->pw_dir;
-        }
+        m_sHomePath = getenv("USERPROFILE");
     }
 
     if (m_sHomePath.empty()) {
@@ -583,7 +548,7 @@ CString CDir::CheckPathPrefix(const CString& sPath, const CString& sAdd,
     return sAbsolutePath;
 }
 
-bool CDir::MakeDir(const CString& sPath, mode_t iMode) {
+bool CDir::MakeDir(const CString& sPath) {
     CString sDir;
     VCString dirs;
     VCString::iterator it;
@@ -603,7 +568,7 @@ bool CDir::MakeDir(const CString& sPath, mode_t iMode) {
         // Add this to the path we already created
         sDir += *it;
 
-        int i = mkdir(sDir.c_str(), iMode);
+        int i = mkdir(sDir.c_str());
 
         if (i != 0) {
             // All errors except EEXIST are fatal
@@ -619,7 +584,7 @@ bool CDir::MakeDir(const CString& sPath, mode_t iMode) {
     // All went well
     return true;
 }
-
+/*
 int CExecSock::popen2(int& iReadFD, int& iWriteFD, const CString& sCommand) {
     int rpipes[2] = {-1, -1};
     int wpipes[2] = {-1, -1};
@@ -681,3 +646,4 @@ void CExecSock::close2(int iPid, int iReadFD, int iWriteFD) {
     }
     return;
 }
+*/

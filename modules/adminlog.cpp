@@ -19,8 +19,17 @@
 #include <znc/IRCNetwork.h>
 #include <znc/User.h>
 
-#include <syslog.h>
+//#include <syslog.h>
 #include <time.h>
+
+#define LOG_EMERG 0       /* system is unusable */
+#define LOG_ALERT 1         /* action must be taken immediately */
+#define LOG_CRIT 2    /* critical conditions */
+#define LOG_ERR 3     /* error conditions */
+#define LOG_WARNING 4 /* warning conditions */
+#define LOG_NOTICE 5  /* normal but significant condition */
+#define LOG_INFO 6    /* informational */
+#define LOG_DEBUG 7   /* debug-level messages */
 
 class CAdminLogMod : public CModule {
   public:
@@ -31,12 +40,12 @@ class CAdminLogMod : public CModule {
         AddCommand("Target", t_d("<file|syslog|both> [path]"),
                    t_d("Set the logging target"),
                    [=](const CString& sLine) { OnTargetCommand(sLine); });
-        openlog("znc", LOG_PID, LOG_DAEMON);
+        //openlog("znc", LOG_PID, LOG_DAEMON);
     }
 
     ~CAdminLogMod() override {
         Log("Logging ended.");
-        closelog();
+        //closelog();
     }
 
     bool OnLoad(const CString& sArgs, CString& sMessage) override {
@@ -52,8 +61,7 @@ class CAdminLogMod : public CModule {
 
         SetLogFilePath(GetNV("path"));
 
-        Log("Logging started. ZNC PID[" + CString(getpid()) + "] UID/GID[" +
-            CString(getuid()) + ":" + CString(getgid()) + "]");
+        Log("Logging started. ZNC PID[" + CString(getpid()) + "]");
         return true;
     }
 
@@ -108,7 +116,7 @@ class CAdminLogMod : public CModule {
         struct stat ModDirInfo;
         CFile::GetInfo(GetSavePath(), ModDirInfo);
         if (!CFile::Exists(sLogDir)) {
-            CDir::MakeDir(sLogDir, ModDirInfo.st_mode);
+            CDir::MakeDir(sLogDir);
         }
 
         m_sLogFile = sPath;
@@ -116,7 +124,7 @@ class CAdminLogMod : public CModule {
     }
 
     void Log(CString sLine, int iPrio = LOG_INFO) {
-        if (m_eLogMode & LOG_TO_SYSLOG) syslog(iPrio, "%s", sLine.c_str());
+       // if (m_eLogMode & LOG_TO_SYSLOG) syslog(iPrio, "%s", sLine.c_str());
 
         if (m_eLogMode & LOG_TO_FILE) {
             time_t curtime;
@@ -129,11 +137,10 @@ class CAdminLogMod : public CModule {
 
             CFile LogFile(m_sLogFile);
 
-            if (LogFile.Open(O_WRONLY | O_APPEND | O_CREAT))
+            if (LogFile.Open(_O_WRONLY | _O_APPEND | _O_CREAT))
                 LogFile.Write(buf + sLine + "\n");
             else
-                DEBUG("Failed to write to [" << m_sLogFile
-                                             << "]: " << strerror(errno));
+                std::cout << "Failed to write to [" +m_sLogFile + "]: " + strerror(errno);
         }
     }
 

@@ -39,8 +39,17 @@
 #include <znc/zncconfig.h>
 #include <znc/ZNCString.h>
 #include <znc/Nick.h>
-#include <sys/time.h>
-
+#include <ctime>
+#ifndef WINDOWSH
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define WINDOWSH
+#endif
+#ifndef WINSOCKS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define WINSOCKS
+#endif
 class CChan;
 class CClient;
 class CIRCNetwork;
@@ -72,7 +81,7 @@ class CMessage {
     explicit CMessage(const CString& sMessage = "");
     CMessage(const CNick& Nick, const CString& sCommand,
              const VCString& vsParams = VCString(),
-             const MCString& mssTags = MCString::EmptyMap);
+             const MCString& mssTags = MCString());
 
     enum class Type {
         Unknown,
@@ -136,10 +145,10 @@ class CMessage {
     void SetParams(const VCString& vsParams);
 
     /// @deprecated use GetParamsColon() instead.
-    CString GetParams(unsigned int uIdx, unsigned int uLen = -1) const
+    /* CString GetParams(unsigned int uIdx, unsigned int uLen = -1) const
         ZNC_MSG_DEPRECATED("Use GetParamsColon() instead") {
         return GetParamsColon(uIdx, uLen);
-    }
+    }*/
     CString GetParamsColon(unsigned int uIdx, unsigned int uLen = -1) const;
 
     CString GetParam(unsigned int uIdx) const;

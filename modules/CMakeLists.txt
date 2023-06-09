@@ -22,7 +22,7 @@ function(add_cxx_module mod modpath)
 	set_target_properties("module_${mod}" PROPERTIES
 		OUTPUT_NAME "${mod}"
 		PREFIX ""
-		SUFFIX ".so"
+		SUFFIX ".dll"
 		NO_SONAME true
 		CXX_VISIBILITY_PRESET "hidden")
 	if(moddef_${mod})
@@ -37,12 +37,15 @@ function(add_cxx_module mod modpath)
 	if(moddepend_${mod})
 		add_dependencies("module_${mod}" ${moddepend_${mod}})
 	endif()
+	target_include_directories("module_${mod}" PUBLIC "D:\\znc_msvc\\ZNC\\include")
 	# ${znclib_LIB_DEPENDS} is to overcome OSX's need for -undefined suppress
 	# when accessing symbols exported by dependencies of znclib (e.g.
 	# openssl), but not used in znclib itself
-	target_link_libraries("module_${mod}" PRIVATE ZNC ${modlink_${mod}}
-		${znclib_LIB_DEPENDS})
+	target_link_libraries("module_${mod}" PUBLIC ZNCEXEE)
+	target_link_options("module_${mod}" PRIVATE "-Wl,--export-all-symbols")
+
 	set_target_properties("module_${mod}" PROPERTIES "" "" ${modprop_${mod}})
+	message("Test: ${CMAKE_INSTALL_LIBDIR}")
 	install(TARGETS "module_${mod}"
 		LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/znc")
 endfunction()
@@ -79,6 +82,7 @@ else()
 endif()
 
 set(actual_modules)
+message("SuperTest")
 
 foreach(modpath ${all_modules})
 	if(NOT "${modpath}" MATCHES "/([-a-zA-Z0-9_]+)\\.([a-z]+)$")
@@ -124,4 +128,5 @@ if(HAVE_I18N)
 endif()
 
 install(DIRECTORY data/
-	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/modules")
+	DESTINATION "${CMAKE_INSTALL_DATADIR}/znc/modules"
+)

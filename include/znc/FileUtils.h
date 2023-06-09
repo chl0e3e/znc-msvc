@@ -17,16 +17,22 @@
 #ifndef ZNC_FILEUTILS_H
 #define ZNC_FILEUTILS_H
 
+#ifndef WINDOWSH
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define WINDOWSH
+#endif
+
 #include <znc/zncconfig.h>
 #include <znc/ZNCString.h>
-#include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <vector>
-
+#include <direct.h>
+#include <fileapi.h>
+#include <stdio.h>
 class CFile {
   public:
     CFile();
@@ -74,16 +80,12 @@ class CFile {
     time_t GetATime() const;
     time_t GetMTime() const;
     time_t GetCTime() const;
-    uid_t GetUID() const;
-    gid_t GetGID() const;
     static bool Exists(const CString& sFile);
 
     static off_t GetSize(const CString& sFile);
     static time_t GetATime(const CString& sFile);
     static time_t GetMTime(const CString& sFile);
     static time_t GetCTime(const CString& sFile);
-    static uid_t GetUID(const CString& sFile);
-    static gid_t GetGID(const CString& sFile);
     static int GetInfo(const CString& sFile, struct stat& st);
 
     //
@@ -98,26 +100,23 @@ class CFile {
                      bool bOverwrite = false);
     static bool Copy(const CString& sOldFileName, const CString& sNewFileName,
                      bool bOverwrite = false);
-    bool Chmod(mode_t mode);
-    static bool Chmod(const CString& sFile, mode_t mode);
     bool Seek(off_t uPos);
     bool Truncate();
     bool Sync();
-    bool Open(const CString& sFileName, int iFlags = O_RDONLY,
-              mode_t iMode = 0644);
-    bool Open(int iFlags = O_RDONLY, mode_t iMode = 0644);
-    ssize_t Read(char* pszBuffer, int iBytes);
+    bool Open(const CString& sFileName, int iFlags = _O_RDONLY);
+    bool Open(int iFlags = _O_RDONLY);
+    SSIZE_T Read(char* pszBuffer, int iBytes);
     bool ReadLine(CString& sData, const CString& sDelimiter = "\n");
-    bool ReadFile(CString& sData, size_t iMaxSize = 512 * 1024);
-    ssize_t Write(const char* pszBuffer, size_t iBytes);
-    ssize_t Write(const CString& sData);
+    bool XReadFile(CString& sData, size_t iMaxSize = 512 * 1024);
+    SSIZE_T Write(const char* pszBuffer, size_t iBytes);
+    SSIZE_T Write(const CString& sData);
     void Close();
     void ClearBuffer();
 
-    bool TryExLock(const CString& sLockFile, int iFlags = O_RDWR | O_CREAT);
-    bool TryExLock();
+    bool TryExLock(const CString& sLockFile, int iFlags = _O_RDWR | _O_CREAT);
+    /*bool TryExLock();
     bool ExLock();
-    bool UnLock();
+    bool UnLock();*/
 
     bool IsOpen() const;
     CString GetLongName() const;
@@ -167,54 +166,29 @@ class CDir : public std::vector<CFile*> {
 
     size_t FillByWildcard(const CString& sDir, const CString& sWildcard) {
         CleanUp();
-        DIR* dir = opendir((sDir.empty()) ? "." : sDir.c_str());
-
-        if (!dir) {
-            return 0;
-        }
-
-        struct dirent* de;
-
-        while ((de = readdir(dir)) != nullptr) {
-            if ((strcmp(de->d_name, ".") == 0) ||
-                (strcmp(de->d_name, "..") == 0)) {
-                continue;
+        HANDLE hFind;
+        WIN32_FIND_DATA FindFileData;
+        const char* sDirC = sDir.c_str();
+        int sDirL = strlen(sDirC);
+        const char* sWildcardC = sWildcard.c_str();
+        int sWildcardL = strlen(sWildcardC);
+        char* fullString = (char*)malloc(sDirL + 1 + sWildcardL + 1);
+        snprintf(fullString, sDirL + 1 + sWildcardL + 1, "%s\\%s", sDirC,
+                  +sWildcardC);
+        if ((hFind = FindFirstFile(fullString, &FindFileData)) != (HANDLE)-1) {
+            do {
+                std::string sf =
+                    sDir.TrimSuffix_n("\\") + "\\" + FindFileData.cFileName;
+                CFile* file = new CFile(sf);
+                push_back(file);
+                
             }
-            if ((!sWildcard.empty()) &&
-                (!CString(de->d_name).WildCmp(sWildcard))) {
-                continue;
-            }
-
-            CFile* file =
-                new CFile(sDir.TrimSuffix_n("/") + "/" +
-                          de->d_name /*, this*/);  // @todo need to pass pointer
-                                                   // to 'this' if we want to do
-                                                   // Sort()
-            push_back(file);
+            while (FindNextFile(hFind, &FindFileData));
+            FindClose(hFind);
         }
-
-        closedir(dir);
         return size();
     }
-
-    static unsigned int Chmod(mode_t mode, const CString& sWildcard,
-                              const CString& sDir = ".") {
-        CDir cDir;
-        cDir.FillByWildcard(sDir, sWildcard);
-        return cDir.Chmod(mode);
-    }
-
-    unsigned int Chmod(mode_t mode) {
-        unsigned int uRet = 0;
-        for (unsigned int a = 0; a < size(); a++) {
-            if ((*this)[a]->Chmod(mode)) {
-                uRet++;
-            }
-        }
-
-        return uRet;
-    }
-
+    
     static unsigned int Delete(const CString& sWildcard,
                                const CString& sDir = ".") {
         CDir cDir;
@@ -242,11 +216,11 @@ class CDir : public std::vector<CFile*> {
                                    const CString& sHomeDir = "");
     static CString ChangeDir(const CString& sPath, const CString& sAdd,
                              const CString& sHomeDir = "");
-    static bool MakeDir(const CString& sPath, mode_t iMode = 0700);
+    static bool MakeDir(const CString& sPath);
 
     static CString GetCWD() {
         CString sRet;
-        char* pszCurDir = getcwd(nullptr, 0);
+        char* pszCurDir = _getcwd(nullptr, 0);
         if (pszCurDir) {
             sRet = pszCurDir;
             free(pszCurDir);

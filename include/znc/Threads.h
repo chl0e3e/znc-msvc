@@ -19,7 +19,6 @@
 
 #include <znc/zncconfig.h>
 
-#ifdef HAVE_PTHREAD
 
 #include <znc/Utils.h>
 
@@ -28,7 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <list>
-#include <pthread.h>
+//#include <pthread.h>
 #include <mutex>
 #include <condition_variable>
 
@@ -164,5 +163,4 @@ class CThreadPool {
     std::list<CJob*> m_jobs;
 };
 
-#endif  // HAVE_PTHREAD
 #endif  // !ZNC_THREADS_H

@@ -16,11 +16,15 @@
 
 #ifndef ZNC_BUFFER_H
 #define ZNC_BUFFER_H
-
+#ifndef WINSOCKS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define WINSOCKS
+#endif
 #include <znc/zncconfig.h>
 #include <znc/ZNCString.h>
 #include <znc/Message.h>
-#include <sys/time.h>
+#include <ctime>
 #include <deque>
 
 // Forward Declarations
@@ -29,14 +33,13 @@ class CClient;
 
 class CBufLine {
   public:
-    CBufLine() : CBufLine("") {
+    CBufLine() {
         throw 0;
     }  // shouldn't be called, but is needed for compilation
     CBufLine(const CMessage& Format, const CString& sText = "");
     /// @deprecated
     CBufLine(const CString& sFormat, const CString& sText = "",
-             const timeval* ts = nullptr,
-             const MCString& mssTags = MCString::EmptyMap);
+             const timeval* ts = nullptr, const MCString& mssTags = MCString());
     ~CBufLine();
     CMessage ToMessage(const CClient& Client, const MCString& mssParams) const;
     /// @deprecated Use ToMessage() instead
@@ -82,9 +85,9 @@ class CBuffer : private std::deque<CBufLine> {
     size_type UpdateExactLine(const CMessage& Format,
                               const CString& sText = "");
 
-    size_type AddLine(const CString& sFormat, const CString& sText = "",
-                      const timeval* ts = nullptr,
-                      const MCString& mssTags = MCString::EmptyMap);
+    size_type AddLine(const CString& sFormat, const CString& sText,
+                      const timeval* ts,
+                      const MCString& mssTags);
     /// Same as AddLine, but replaces a line whose format string starts with sMatch if there is one.
     size_type UpdateLine(const CString& sMatch, const CString& sFormat,
                          const CString& sText = "");
@@ -94,7 +97,7 @@ class CBuffer : private std::deque<CBufLine> {
                               const CString& sText = "");
     const CBufLine& GetBufLine(unsigned int uIdx) const;
     CString GetLine(size_type uIdx, const CClient& Client,
-                    const MCString& msParams = MCString::EmptyMap) const;
+                    const MCString& msParams = MCString()) const;
     size_type Size() const { return size(); }
     bool IsEmpty() const { return empty(); }
     void Clear() { clear(); }

@@ -26,8 +26,8 @@ class CBuffExtras : public CModule {
     ~CBuffExtras() override {}
 
     void AddBuffer(CChan& Channel, const CString& sMessage,
-                   const timeval* tv = nullptr,
-                   const MCString& mssTags = MCString::EmptyMap) {
+                   const timeval* tv ,
+                   const MCString& mssTags ) {
         // If they have AutoClearChanBuffer enabled, only add messages if no
         // client is connected
         if (Channel.AutoClearChanBuffer() && GetNetwork()->IsUserOnline())
@@ -44,7 +44,8 @@ class CBuffExtras : public CModule {
         const CString sNickMask =
             pOpNick ? pOpNick->GetNickMask() : t_s("Server");
         AddBuffer(Channel,
-                  t_f("{1} set mode: {2} {3}")(sNickMask, sModes, sArgs));
+                  t_f("{1} set mode: {2} {3}")(sNickMask, sModes, sArgs), 0,
+                  MCString());
     }
 
     void OnKickMessage(CKickMessage& Message) override {

@@ -17,12 +17,10 @@
 #include <znc/ZNCDebug.h>
 #include <znc/Utils.h>
 #include <iostream>
-#include <sys/time.h>
+#include <ctime>
 #include <stdio.h>
 #include <time.h>
 
-bool CDebug::stdoutIsTTY = true;
-bool CDebug::debug = false;
 
 CString CDebug::Filter(const CString& sUnfilteredLine) {
     CString sFilteredLine = sUnfilteredLine;
@@ -51,9 +49,8 @@ CDebugStream::~CDebugStream() {
                                          // tv_sec as long int instead of time_t
     tm tM;
     tzset();  // localtime_r requires this
-    localtime_r(&tSec, &tM);
     char sTime[20] = {};
-    strftime(sTime, sizeof(sTime), "%Y-%m-%d %H:%M:%S", &tM);
+    strftime(sTime, sizeof(sTime), "%Y-%m-%d %H:%M:%S", localtime(&tSec));
     char sUsec[7] = {};
     snprintf(sUsec, sizeof(sUsec), "%06lu", (unsigned long int)tTime.tv_usec);
     std::cout << "[" << sTime << "." << sUsec << "] "
